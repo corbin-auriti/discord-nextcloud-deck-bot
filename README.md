@@ -30,7 +30,7 @@ Built for [Unsprawling Calgary](https://community.unsprawling.org/).
 ### Using Docker (Recommended)
 1. Clone the repository:
 ```bash
-git clone https://github.com/your-repo/nextcloud-deck-discord-bot
+git clone https://github.com/corbin-auriti/discord-nextcloud-deck-bot/
 cd nextcloud-deck-discord-bot
 ```
 
@@ -40,7 +40,9 @@ NEXTCLOUD_URL=https://your-nextcloud-url
 NEXTCLOUD_USERNAME=your-username
 NEXTCLOUD_PASSWORD=your-password
 DISCORD_WEBHOOK_URL=your-webhook-url
-BOARD_ID=your-board-number
+DISCORD_THREAD_ID=your-thread-id (https://discord.com/channels/FORUM-CHANNEL-ID/YOUR-THREAD-ID)
+BOARD_ID=your-board-number (https://your-nextcloud-url/apps/deck/board/YOUR-BOARD-NUMBER)
+
 CHECK_INTERVAL=60
 ```
 
@@ -116,8 +118,6 @@ For issues and support:
 1. Check the troubleshooting guide
 2. Review Docker logs
 3. Open an issue on GitHub
-4. Contact Unsprawling Calgary team
-
 ---
 
 *Note: This bot was created using AI assistance. While it has been designed with security and reliability in mind, users should perform their own security assessment before deployment in production environments.*
