@@ -8,6 +8,7 @@ services:
       - NEXTCLOUD_PASSWORD=${NEXTCLOUD_PASSWORD}
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
       - BOARD_ID=${BOARD_ID}
+      - DISCORD_THREAD_ID=${DISCORD_THREAD_ID}
       - CHECK_INTERVAL=${CHECK_INTERVAL:-60}
     restart: unless-stopped
     logging:
@@ -15,4 +16,3 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-

@@ -9,16 +9,20 @@ import logging
 from typing import Optional, List, Dict, Any
 from urllib3.util import Retry
 from requests.adapters import HTTPAdapter
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 
 
 class DeckDiscordBot:
+    
+    DISCORD_EMBED_LIMIT = 4096
+
     def __init__(self):
         # Load configuration from environment variables
         self.nextcloud_url = os.getenv('NEXTCLOUD_URL')
         self.username = os.getenv('NEXTCLOUD_USERNAME')
         self.password = os.getenv('NEXTCLOUD_PASSWORD')
         self.webhook_url = os.getenv('DISCORD_WEBHOOK_URL')
+        self.thread_id = os.getenv('DISCORD_THREAD_ID')
         self.board_id = int(os.getenv('BOARD_ID', '0'))
         self.check_interval = int(os.getenv('CHECK_INTERVAL', '60'))
 
@@ -81,8 +85,12 @@ class DeckDiscordBot:
         return self._make_request('GET', f'boards/{board_id}')
 
     def get_stacks(self, board_id: int) -> Optional[List[Dict]]:
-        """Fetch all stacks for a board safely"""
-        return self._make_request('GET', f'boards/{board_id}/stacks')
+        """Fetch all stacks for a board safely, skip archived"""
+        stacks = self._make_request('GET', f'boards/{board_id}/stacks')
+        if stacks:
+            # Filter out archived stacks
+            return [stack for stack in stacks if not stack.get('archived', False)]
+        return None
 
     def create_card_description(self, card: Dict, number: int) -> str:
         """Create a formatted card description with number and metadata"""
@@ -133,8 +141,20 @@ class DeckDiscordBot:
         """Fetch all cards for a stack safely"""
         response = self._make_request('GET', f'boards/{board_id}/stacks/{stack_id}')
         if response and 'cards' in response:
-            cards = sorted(response['cards'], key=lambda x: x.get('order', 0))
+            # Filter out archived cards
+            active_cards = [
+                card for card in response['cards'] 
+                if not card.get('archived', False)
+            ]
+            
+            # Sort active cards
+            cards = sorted(active_cards, key=lambda x: x.get('order', 0))
+            
+            # If no active cards, return empty list
+            if not cards:
+                return []        
             return cards
+
         return []
 
 
@@ -143,19 +163,27 @@ class DeckDiscordBot:
         try:
             board_title = f"**{board_data['title']}** - {datetime.now().strftime('%B %d %Y - %H:%M')}"
             
+            # Keep track of whether we've sent the first message
+            first_message_sent = False
+            
             # Process each stack separately
             for stack in stacks_data:
                 try:
+                    # Skip archived stacks
+                    if stack.get('archived', False):
+                        continue
+                    
                     # Get and format cards
                     cards = self.get_cards(board_data['id'], stack['id'])
                     
-                    # Skip stacks with no cards
+                    # Skip stacks with no active cards
                     if not cards:
+                        self.logger.debug(f"Skipping stack {stack['title']} - no active cards")
                         continue
                     
                     # Create new webhook for each stack
-                    webhook = DiscordWebhook(url=self.webhook_url, rate_limit_retry=True)
-                    webhook.content = board_title if stack == stacks_data[0] else None  # Only add title for first stack
+                    webhook = DiscordWebhook(url=self.webhook_url, rate_limit_retry=True, thread_id=f"{self.thread_id}")
+                    webhook.content = board_title if not first_message_sent else None
                     
                     embed = DiscordEmbed(
                         title=stack['title'],
@@ -172,21 +200,21 @@ class DeckDiscordBot:
                     if card_descriptions:
                         # Split card descriptions if they exceed Discord's limit
                         combined_desc = '\n\n'.join(card_descriptions)
-                        if len(combined_desc) > 4096:  # Discord's embed description limit
-                            # Split into multiple embeds
+                        if len(combined_desc) > self.DISCORD_EMBED_LIMIT:
                             current_desc = []
                             current_length = 0
                             
                             for card_desc in card_descriptions:
                                 desc_length = len(card_desc) + 2  # +2 for '\n\n'
-                                if current_length + desc_length > 4096:
+                                if current_length + desc_length > self.DISCORD_EMBED_LIMIT:
                                     # Create and send current embed
                                     embed.description = '\n\n'.join(current_desc)
                                     webhook.add_embed(embed)
-                                    self.post_to_discord(webhook)
+                                    if self.post_to_discord(webhook):
+                                        first_message_sent = True
                                     
                                     # Create new webhook and embed for remaining cards
-                                    webhook = DiscordWebhook(url=self.webhook_url, rate_limit_retry=True)
+                                    webhook = DiscordWebhook(url=self.webhook_url, rate_limit_retry=True, thread_id=f"{self.thread_id}")
                                     embed = DiscordEmbed(
                                         title=f"{stack['title']} (continued)",
                                         color='03b2f8'
@@ -201,17 +229,22 @@ class DeckDiscordBot:
                             if current_desc:
                                 embed.description = '\n\n'.join(current_desc)
                                 webhook.add_embed(embed)
-                                self.post_to_discord(webhook)
+                                if self.post_to_discord(webhook):
+                                    first_message_sent = True
                         else:
                             # If description is within limits, send as single embed
                             embed.description = combined_desc
                             webhook.add_embed(embed)
-                            self.post_to_discord(webhook)
+                            if self.post_to_discord(webhook):
+                                first_message_sent = True
                     
                 except Exception as e:
                     self.logger.error(f"Error processing stack {stack.get('id')}: {str(e)}")
                     continue
                     
+            if not first_message_sent:
+                self.logger.info("No active cards found in any stack")
+                
         except Exception as e:
             self.logger.error(f"Error creating Discord messages: {str(e)}")
 
