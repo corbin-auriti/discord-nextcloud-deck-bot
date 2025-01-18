@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  deck-discord-bot:
+    build: .
+    container_name: deck-discord-bot
+    environment:
+      - NEXTCLOUD_URL=${NEXTCLOUD_URL}
+      - NEXTCLOUD_USERNAME=${NEXTCLOUD_USERNAME}
+      - NEXTCLOUD_PASSWORD=${NEXTCLOUD_PASSWORD}
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
+      - BOARD_ID=${BOARD_ID}
+      - CHECK_INTERVAL=${CHECK_INTERVAL:-60}
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
