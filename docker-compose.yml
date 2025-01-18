@@ -10,6 +10,7 @@ services:
       - BOARD_ID=${BOARD_ID}
       - DISCORD_THREAD_ID=${DISCORD_THREAD_ID}
       - CHECK_INTERVAL=${CHECK_INTERVAL:-60}
+      - TZ=America/Edmonton
     restart: unless-stopped
     logging:
       driver: "json-file"

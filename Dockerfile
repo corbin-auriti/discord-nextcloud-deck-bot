@@ -11,6 +11,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy source code
 COPY deck_bot.py .
 
+RUN sudo echo "America/Edmonton" > /etc/timezone
+RUN sudo dpkg-reconfigure -f noninteractive tzdata
+
 # Set environment variables (these will be overridden by docker-compose or docker run)
 ENV NEXTCLOUD_URL=""
 ENV NEXTCLOUD_USERNAME=""
