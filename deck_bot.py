@@ -262,7 +262,7 @@ class DeckDiscordBot:
 
 if __name__ == "__main__":
     try:
-        load_dotenv() #for testing
+        #load_dotenv() #for testing
         bot = DeckDiscordBot()
         bot.monitor_board()
     except Exception as e:
